@@ -9,6 +9,8 @@
   <script src="http://code.highcharts.com/highcharts-more.js"></script>
   <script type="text/javascript">
 
+    var cur_user_no; 
+
     var gaugeChart;
     var graphChart;
 
@@ -48,6 +50,7 @@
     var total_talk = 300000;
 
     $(document).ready(function(){
+      getCurUser();
       connect_to_timer_firebase();
       setupGauge();
       setupGraph();
@@ -56,6 +59,27 @@
 
     function percentage_talk(time) {
       return Math.ceil((time/300000)*100);
+    }
+
+    // get param from url
+    function getParam(variable) {
+      var query = window.location.search.substring(1);
+      var vars = query.split("&");
+      for (var i = 0; i < vars.length; i++) {
+        var pair = vars[i].split("=");
+        if (pair[0] == variable) { 
+          return pair[1]; 
+        }
+      }
+     return null;
+    }
+
+    function getCurUser() {
+      var user = getParam("user");
+      if (user) {
+        cur_user_no = parseInt(user);
+      }
+      console.log(cur_user_no);
     }
 
 
@@ -133,39 +157,28 @@
       //mechanism to receive vis. updates pushed to fb
       fb_update_vis = fb_instance.child("update");
       fb_update_vis.on('child_added', function(dataSnapshot) {
+
         var percentage_1 = percentage_talk(first_snapshot_val);
         var percentage_2 = percentage_talk(second_snapshot_val);
         var percentage_3 = percentage_talk(third_snapshot_val);
         var percentage_4 = percentage_talk(fourth_snapshot_val);
 
-        //Update user 1 percentage
-        var data = graphChart.series[0].data;
-        data[0].y = percentage_1;
-        graphChart.series[0].setData(data,true);
+        var percentages = [percentage_1, percentage_2, percentage_3, percentage_4];
+        for (var i = 0; i < percentages.length; i++) {
+          // update bar graph data for each user
+          var data = graphChart.series[i].data;
+          data[0].y = percentages[i];
+          graphChart.series[i].setData(data,true);
+          if (cur_user_no) {
+            if (i + 1 == cur_user_no) {
+              // update gauge for current user only
+              var data = gaugeChart.series[0].data;
+              data[0].y = percentages[i];
+              gaugeChart.series[0].setData(data,true);
+            }
+          }
+        }
 
-        var data2 = gaugeChart.series[0].data
-        data2[0].y = percentage_4;
-        gaugeChart.series[0].setData(data2,true);
-
-        //... user 2 percentage
-        var data = graphChart.series[1].data;
-        data[0].y = percentage_2;
-        graphChart.series[1].setData(data,true);
-
-        //... user 3 percentage
-        var data = graphChart.series[2].data;
-        data[0].y = percentage_3;
-        graphChart.series[2].setData(data,true);
-
-        //... user 4 percentage
-        var data = graphChart.series[3].data;
-        data[0].y = percentage_4;
-        graphChart.series[3].setData(data,true);
-
-        //console.log(percentage_1);
-        //console.log(percentage_2);
-        //console.log(percentage_3);
-        //console.log(percentage_4);
       });
 
       fb_conversation = fb_instance.child('conversation');
@@ -217,8 +230,8 @@
           enabled: false
         },
         pane: {
-            startAngle: -90,
-            endAngle: 90,
+            startAngle: -150,
+            endAngle: 150,
             background: [{
                 backgroundColor: {
                     linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
@@ -251,7 +264,7 @@
         // the value axis
         yAxis: {
             min: 0,
-            max: 60,
+            max: 100,
             
             minorTickInterval: 5,
             minorTickWidth: 1,
@@ -264,24 +277,25 @@
             tickPosition: 'inside',
             tickLength: 10,
             tickColor: '#666',
+
             labels: {
                 step: 2,
                 rotation: 'auto'
             },
             title: {
-                text: '% talking'
+                text: '% time talking'
             },
             plotBands: [{
                 from: 0,
-                to: 20,
+                to: 15,
                 color: '#DDDF0D' // yellow
             }, {
-                from: 20,
-                to: 40,
+                from: 15,
+                to: 45,
                 color: '#55BF3B' // green
             }, {
-                from: 40,
-                to: 60,
+                from: 45,
+                to: 100,
                 color: '#DF5353' // red
             }]        
         },
@@ -304,6 +318,9 @@
         subtitle: {
           text: 'As a percentage of the conversation'
         },
+        credits: {
+          enabled: false
+        },
         xAxis: {
           labels: {
             enabled: false
@@ -313,25 +330,30 @@
           min: 0,
           max: 60,
           title: {
-            text: '% Talking'
+            text: '% time spent talking'
           },
           plotBands: [
             {
               color: '#DDDF0D',
               from: 0,
-              to: 20
+              to: 15
             },
             {
               color: '#55BF3B',
-              from: 20,
-              to: 40
+              from: 15,
+              to: 45
             },
             {
               color: '#DF5353',
-              from: 40,
+              from: 45,
               to: 60
             }
           ],
+          gridLineColor: '#666',
+          gridLineWidth: 2,
+          tickInterval: 5,
+          tickWidth: 2,
+          tickColor: '#666',
         },
         tooltip: {
           enabled: false
@@ -357,7 +379,11 @@
             name: 'Will',
             data: [25]
 
-        }]
+        }],
+        legend: {
+          // itemWidth: 100,
+          // padding: 80
+        }
       });
     }
 
